@@ -3,4 +3,6 @@
     android:name="com.naver.maps.map.CLIENT_ID"
     android:value="${naverClientId}"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 </manifest>
