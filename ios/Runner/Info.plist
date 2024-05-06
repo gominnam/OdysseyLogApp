@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NMFClientId</key>
+	<string>$(NAVER_CLIENT_ID)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>이 앱을 사용하는 동안에만 위치 정보를 사용합니다.</string>
 </dict>
 </plist>
