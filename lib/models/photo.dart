@@ -1,19 +1,21 @@
 
 class Photo {
-  final String order;
-  final String temporaryId;
+  // final String order;
+  final String path;
+  final String? presignedUrl;
 
   Photo({
-    required this.order,
-    required this.temporaryId,
+    // required this.order,
+    required this.path,
+    this.presignedUrl,
   });
 
   Photo.fromJson(Map<String, dynamic> json)
-    : order = json['order'],
-      temporaryId = json['temporaryId'];
+    // : order = json['order'],
+    : path = json['path']
+    , presignedUrl = json['presignedUrl'];
 
   Map<String, dynamic> toJson() => {
-    'order': order,
-    'temporaryId': temporaryId,
+    // 'order': order,
   };
 }
