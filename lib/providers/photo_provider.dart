@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:odyssey_flutter_app/models/photo.dart';
 
-class PhotoProvide with ChangeNotifier {
+class PhotoProvider with ChangeNotifier {
   final List<Photo> _photos = [];
   List<Photo> get photos => _photos;
 

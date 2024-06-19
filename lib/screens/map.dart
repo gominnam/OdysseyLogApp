@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,6 +12,7 @@ import 'package:odyssey_flutter_app/models/route.dart' as app_route;
 import 'package:odyssey_flutter_app/models/spot.dart';
 import 'package:odyssey_flutter_app/models/photo.dart';
 import 'package:odyssey_flutter_app/models/odyssey.dart';
+import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -76,10 +75,7 @@ class _MapScreenState extends State<MapScreen> {
           var photo = indexAndPhoto.value;
           var responsePhoto = responsePhotos[index];
           if (responsePhoto['presignedUrl'] != null) {
-            // presigned URL을 가져옵니다.
             String presignedUrl = responsePhoto['presignedUrl'];
-
-            // presigned URL에 이미지를 업로드합니다.
             await uploadImageToS3(presignedUrl, File(photo.path));
           } else {
             print('presignedUrl is null for photo: ${photo.path}');
@@ -102,7 +98,7 @@ class _MapScreenState extends State<MapScreen> {
                         endLongitude: spots.last.position.longitude
                         );
 
-    // 2. Mark된 Spot point 데이터를 가공합니다. 여기서는 메모 또는 사진이 있는 Spot만 선택합니다.
+    // 2. Mark된 Spot point 데이터를 가공합니다. 여기서는 처음과 끝을 제외한 메모 또는 사진이 있는 Spot만 선택
     final spotsWithMemoAndPhoto = [
       spots.first,
       ...spots.sublist(1, spots.length - 1).where((spot) => spot.memo != null || spot.photos != null),
@@ -115,7 +111,7 @@ class _MapScreenState extends State<MapScreen> {
     );
 
     final response = await http.post(
-      Uri.parse('https://called-contemporary-hughes-lands.trycloudflare.com/api/odyssey/'),
+      Uri.parse('https://filename-lender-silver-stores.trycloudflare.com/api/odyssey/'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
@@ -177,7 +173,7 @@ class _MapScreenState extends State<MapScreen> {
                           children: <Widget>[
                             ListView(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.only(top: 50),  // 버튼 높이만큼 패딩을 주어 버튼과 겹치지 않도록 합니다.
+                              padding: const EdgeInsets.only(top: 50),
                               children: spot.photos!.map((photo) => Image.file(
                                 File(photo.path),
                                 width: MediaQuery.of(context).size.width / 3,
@@ -192,7 +188,7 @@ class _MapScreenState extends State<MapScreen> {
                                   final imagePath = await pickImage();
                                   if (imagePath != null) {
                                     provider.addPhoto(spot.id, Photo(path: imagePath));
-                                    setState(() {});  // 상태가 변경되었음을 알립니다.
+                                    setState(() {});
                                   }
                                 },
                                 child: const Text('사진 추가'),
@@ -229,10 +225,8 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> addCurrentLocation() async {
-    // final String spotId = Uuid().v1();
     final spotProvider = Provider.of<SpotProvider>(context, listen: false);
     spotProvider.addSpot(Spot(position: await getCurrentSpot(), memo: null, photos: []));
-    // spotProvider.addSpot(Spot(id: spotId, position: await getCurrentSpot(), memo: null));
   }
 
   Future<String?> pickImage() async {
@@ -313,7 +307,115 @@ class _MapScreenState extends State<MapScreen> {
                 ),
                 ElevatedButton(
                   child: const Text('저장하기'),
-                  onPressed: () {
+                  onPressed: () async {
+                    // final routeProvider = Provider.of<RouteProvider>(context, listen: false);
+                    
+       await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Title and Photo'),
+          content: Consumer<RouteProvider>(
+            builder: (context, routeProvider, child) {
+              return Column(
+                children: <Widget>[
+                  TextFormField(
+                    initialValue: routeProvider.routeTitle,
+                    decoration: const InputDecoration(
+                      hintText: '제목을 입력하세요',
+                    ),
+                    onChanged: (value) {
+                      routeProvider.updateRouteTitle(value);
+                    },
+                  ),
+                  Expanded(
+                    child: Stack(
+                      children: <Widget>[
+                        if(routeProvider.routePhotoUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 50),
+                            child: Image.file(
+                              File(routeProvider.routePhotoUrl!),
+                              width: MediaQuery.of(context).size.width,
+                              fit: BoxFit.fitWidth,
+                              key: UniqueKey(),  // 새로운 키를 생성합니다.
+                            ),
+                          ),
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final imagePath = await pickImage();
+                              if (imagePath != null) {
+                                routeProvider.updateRoutePhotoUrl(imagePath);
+                              }
+                            },
+                            child: const Text('사진 추가'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    ); 
+
+                    // await showDialog(
+                    //   context: context,
+                    //   builder: (BuildContext context) {
+                    //     return AlertDialog(
+                    //       title: const Text('Title and Photo'),
+                    //       content: Column(
+                    //         children: <Widget>[
+                    //           TextFormField(
+                    //             initialValue: routeProvider.routeTitle,
+                    //             decoration: const InputDecoration(
+                    //               hintText: '제목을 입력하세요',
+                    //             ),
+                    //             onChanged: (value) {
+                    //               routeProvider.updateRouteTitle(value);
+                    //             },
+                    //           ),
+                    //           Expanded(
+                    //             child: Stack(
+                    //               children: <Widget>[
+                    //                 if(routeProvider.routePhotoUrl != null)
+                    //                   Padding(
+                    //                     padding: const EdgeInsets.only(top: 50),
+                    //                     child: Image.file(
+                    //                       File(routeProvider.routePhotoUrl!),
+                    //                       width: MediaQuery.of(context).size.width,
+                    //                       fit: BoxFit.fitWidth,
+                    //                     ),
+                    //                   ),
+                    //                 Positioned(
+                    //                   top: 0,
+                    //                   left: 0,
+                    //                   child: ElevatedButton(
+                    //                     onPressed: () async {
+                    //                       final imagePath = await pickImage();
+                    //                       if (imagePath != null) {
+                    //                         routeProvider.updateRoutePhotoUrl(imagePath);
+                    //                         setState(() {});  // 상태가 변경되었음을 알립니다.
+                    //                       }
+                    //                     },
+                    //                     child: const Text('사진 추가'),
+                    //                   ),
+                    //                 ),
+                    //               ],
+                    //             ),
+                    //           ),
+                    //         ],
+                    //       ),
+                    //      );
+                    //   },
+                    // );
+
                     final spotProvider = Provider.of<SpotProvider>(context, listen: false);
                     saveMark(spotProvider.getAllSpots());
                   },
