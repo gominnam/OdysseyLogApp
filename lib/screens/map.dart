@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,7 +12,6 @@ import 'package:odyssey_flutter_app/models/photo.dart';
 import 'package:odyssey_flutter_app/models/odyssey.dart';
 import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:screenshot/screenshot.dart';
@@ -53,20 +50,21 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> uploadImages(String responseBody) async {
-    final provider = Provider.of<SpotProvider>(context, listen: false);
+    final routeProvider = Provider.of<RouteProvider>(context, listen: false);
+    final spotProvider = Provider.of<SpotProvider>(context, listen: false);
     Map<String, dynamic> responseJson = jsonDecode(responseBody);
     Map<String, dynamic> responseRoute = responseJson['route'];
     List<dynamic> responseSpots = responseJson['spots'];
 
-    print('responseRoute: $responseRoute');
+    // route photo upload
     if (responseRoute['photoUrl'] != null) {
       String presignedUrl = responseRoute['photoUrl'];
-      await captureAndSaveScreenshot(presignedUrl);
+      await uploadImageToS3(presignedUrl, File(routeProvider.routePhotoUrl!)); 
     }
       
     // spot photos upload
     for (var s in responseSpots) {
-      Spot? spot = provider.getSpot(s['id']);
+      Spot? spot = spotProvider.getSpot(s['id']);
 
       if (spot.photos != null) {
         var responsePhotos = s['photos'];
@@ -85,17 +83,26 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void saveMark(List<Spot> spots) async {
-    if(spots.length < 2) {
-      throw Exception('최소 2개의 경로를 추가해야 합니다.');
+  Map<String, dynamic> validatePosting(SpotProvider spotProvider, RouteProvider routeProvider) {
+    if(spotProvider.spots.length <= 2) {
+      return {'isValid': false, 'message': '최소 2개의 경로를 추가해야 합니다.'};
     }
+    if(routeProvider.routePhotoUrl == null) {
+      return {'isValid': false, 'message': '메인사진을 등록하세요.'};
+    }
+    if(routeProvider.routeTitle == null || routeProvider.routeTitle == '') {
+      return {'isValid': false, 'message': '제목이 필요합니다.'};
+    }
+    return {'isValid': true, 'message': ''};
+  }
 
-    // todo: 저장하기 버튼 크릭하면 toast title 적는 화면 띄우고 title 값 세팅하기
-    final route = app_route.Route(title: "title",
+  void savePosting(SpotProvider spotProvider, RouteProvider routeProvider) async {
+    List<Spot> spots = spotProvider.getAllSpots(); 
+    final route = app_route.Route(title: routeProvider.routeTitle!,
                         startLatitude: spots.first.position.latitude,
                         startLongitude: spots.first.position.longitude,
                         endLatitude: spots.last.position.latitude,
-                        endLongitude: spots.last.position.longitude
+                        endLongitude: spots.last.position.longitude,
                         );
 
     // 2. Mark된 Spot point 데이터를 가공합니다. 여기서는 처음과 끝을 제외한 메모 또는 사진이 있는 Spot만 선택
@@ -111,7 +118,7 @@ class _MapScreenState extends State<MapScreen> {
     );
 
     final response = await http.post(
-      Uri.parse('https://filename-lender-silver-stores.trycloudflare.com/api/odyssey/'),
+      Uri.parse('https://post-photoshop-christ-th.trycloudflare.com/api/odyssey/'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
@@ -124,19 +131,6 @@ class _MapScreenState extends State<MapScreen> {
     } else {
       throw Exception('저장에 실패했습니다.');
     }
-  }
-
-  Future<void> captureAndSaveScreenshot(presignedUrl) async {
-    await screenshotController.capture(delay: const Duration(milliseconds: 10))
-        .then((Uint8List? image) async {
-          if(image != null) {
-            final directory = (await getTemporaryDirectory()).path;
-            File imgFile = File('$directory/screenshot.png');
-            await imgFile.writeAsBytes(image);
-            await uploadImageToS3(presignedUrl, imgFile); 
-          }
-        }
-    );
   }
 
   Future<void> moveMapToCurrentSpot(NaverMapController controller) async {
@@ -308,116 +302,97 @@ class _MapScreenState extends State<MapScreen> {
                 ElevatedButton(
                   child: const Text('저장하기'),
                   onPressed: () async {
-                    // final routeProvider = Provider.of<RouteProvider>(context, listen: false);
-                    
-       await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Title and Photo'),
-          content: Consumer<RouteProvider>(
-            builder: (context, routeProvider, child) {
-              return Column(
-                children: <Widget>[
-                  TextFormField(
-                    initialValue: routeProvider.routeTitle,
-                    decoration: const InputDecoration(
-                      hintText: '제목을 입력하세요',
-                    ),
-                    onChanged: (value) {
-                      routeProvider.updateRouteTitle(value);
-                    },
-                  ),
-                  Expanded(
-                    child: Stack(
-                      children: <Widget>[
-                        if(routeProvider.routePhotoUrl != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 50),
-                            child: Image.file(
-                              File(routeProvider.routePhotoUrl!),
-                              width: MediaQuery.of(context).size.width,
-                              fit: BoxFit.fitWidth,
-                              key: UniqueKey(),  // 새로운 키를 생성합니다.
-                            ),
-                          ),
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              final imagePath = await pickImage();
-                              if (imagePath != null) {
-                                routeProvider.updateRoutePhotoUrl(imagePath);
-                              }
+                    await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Title and Photo'),
+                          content: Consumer<RouteProvider>(
+                            builder: (context, routeProvider, child) {
+                              return Column(
+                                children: <Widget>[
+                                  TextFormField(
+                                    initialValue: routeProvider.routeTitle,
+                                    decoration: const InputDecoration(
+                                      hintText: '제목을 입력하세요',
+                                    ),
+                                    onChanged: (value) {
+                                      routeProvider.updateRouteTitle(value);
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: Stack(
+                                      children: <Widget>[
+                                        if(routeProvider.routePhotoUrl != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 50),
+                                            child: Image.file(
+                                              File(routeProvider.routePhotoUrl!),
+                                              width: MediaQuery.of(context).size.width,
+                                              fit: BoxFit.fitWidth,
+                                              key: UniqueKey(),  // 새로운 키를 생성합니다.
+                                            ),
+                                          ),
+                                        Positioned(
+                                          top: 0,
+                                          left: 0,
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              final imagePath = await pickImage();
+                                              if (imagePath != null) {
+                                                routeProvider.updateRoutePhotoUrl(imagePath);
+                                              }
+                                            },
+                                            child: const Text('사진 추가'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
                             },
-                            child: const Text('사진 추가'),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    ); 
+                          actions: <Widget>[
+                            ElevatedButton(
+                              child: const Text('등록'),
+                              onPressed: () {
+                                final spotProvider = Provider.of<SpotProvider>(context, listen: false);
+                                final routeProvider = Provider.of<RouteProvider>(context, listen: false);
+                                Map<String, dynamic> validation = validatePosting(spotProvider, routeProvider);
+                                if (!validation['isValid']) {
+                                  OverlayEntry overlayEntry = OverlayEntry(
+                                    builder: (context) => Align(
+                                      alignment: Alignment.center,
+                                      child: Material(
+                                        color: Colors.blue,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Text(
+                                            validation['message'],
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
 
-                    // await showDialog(
-                    //   context: context,
-                    //   builder: (BuildContext context) {
-                    //     return AlertDialog(
-                    //       title: const Text('Title and Photo'),
-                    //       content: Column(
-                    //         children: <Widget>[
-                    //           TextFormField(
-                    //             initialValue: routeProvider.routeTitle,
-                    //             decoration: const InputDecoration(
-                    //               hintText: '제목을 입력하세요',
-                    //             ),
-                    //             onChanged: (value) {
-                    //               routeProvider.updateRouteTitle(value);
-                    //             },
-                    //           ),
-                    //           Expanded(
-                    //             child: Stack(
-                    //               children: <Widget>[
-                    //                 if(routeProvider.routePhotoUrl != null)
-                    //                   Padding(
-                    //                     padding: const EdgeInsets.only(top: 50),
-                    //                     child: Image.file(
-                    //                       File(routeProvider.routePhotoUrl!),
-                    //                       width: MediaQuery.of(context).size.width,
-                    //                       fit: BoxFit.fitWidth,
-                    //                     ),
-                    //                   ),
-                    //                 Positioned(
-                    //                   top: 0,
-                    //                   left: 0,
-                    //                   child: ElevatedButton(
-                    //                     onPressed: () async {
-                    //                       final imagePath = await pickImage();
-                    //                       if (imagePath != null) {
-                    //                         routeProvider.updateRoutePhotoUrl(imagePath);
-                    //                         setState(() {});  // 상태가 변경되었음을 알립니다.
-                    //                       }
-                    //                     },
-                    //                     child: const Text('사진 추가'),
-                    //                   ),
-                    //                 ),
-                    //               ],
-                    //             ),
-                    //           ),
-                    //         ],
-                    //       ),
-                    //      );
-                    //   },
-                    // );
+                                  Overlay.of(context).insert(overlayEntry);
 
-                    final spotProvider = Provider.of<SpotProvider>(context, listen: false);
-                    saveMark(spotProvider.getAllSpots());
+                                  // 일정 시간 후에 메시지를 자동으로 제거
+                                  Future.delayed(const Duration(seconds: 3), () {
+                                    overlayEntry.remove();
+                                  });
+                                } else {
+                                  savePosting(spotProvider, routeProvider);
+                                  Navigator.of(context).pop();  // 대화 상자를 닫습니다.
+                                } 
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ); 
                   },
                 ),
               ],

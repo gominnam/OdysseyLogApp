@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:odyssey_flutter_app/screens/map.dart';
 import 'package:provider/provider.dart';
@@ -14,8 +15,15 @@ void main() async {
   await initializeNaverMap();
   await requestLocationPermission();
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => SpotProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => SpotProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => RouteProvider(),
+        ),
+      ],
       child: const MyApp(),
     ),
   );

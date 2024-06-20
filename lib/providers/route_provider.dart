@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 class RouteProvider with ChangeNotifier {
   String? _routeTitle;
   String? _routePhotoUrl;
+  Route? route;
 
   String? get routeTitle => _routeTitle;
   String? get routePhotoUrl => _routePhotoUrl;
