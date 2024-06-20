@@ -48,7 +48,7 @@ Future<void> requestLocationPermission() async {
 // 지도 초기화하기
 Future<void> initializeNaverMap() async {
   await NaverMapSdk.instance.initialize(
-    clientId: dotenv.env['NAVER_MAP_CLIENT_ID'],
+    clientId: dotenv.env['NAVER_CLIENT_ID'],
     onAuthFailed: (e) => log("네이버맵 인증오류 : $e", name: "onAuthFailed")
   );
 }
