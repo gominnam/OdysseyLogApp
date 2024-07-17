@@ -118,7 +118,7 @@ class _MapScreenState extends State<MapScreen> {
     );
 
     final response = await http.post(
-      Uri.parse('https://post-photoshop-christ-th.trycloudflare.com/api/odyssey/'),
+      Uri.parse('https://tf-mauritius-techrepublic-wn.trycloudflare.com/api/odyssey/'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },

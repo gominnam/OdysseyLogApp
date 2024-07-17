@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:odyssey_flutter_app/screens/map.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,13 +81,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,34 +89,47 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+            DrawerHeader(
+              child: Text('Menu'),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            ElevatedButton(
-              onPressed: () {
+            ListTile(
+              title: Text('여정'),
+              onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const MapScreen()),
+                  MaterialPageRoute(builder: (context) => MapScreen()),
                 );
               },
-              child: const Text('Press me'),
-            )
+            ),
+            ListTile(
+              title: Text('개인정보'),
+              onTap: () {
+                // 개인정보 버튼이 클릭되었을 때의 동작
+              },
+            ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(10.0),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 10.0,
+          mainAxisSpacing: 10.0,
+        ),
+        itemCount: 15, // 표시할 이미지의 총 수
+        itemBuilder: (context, index) {
+          return Image.network('https://example.com/image${index}.jpg');
+          // 실제 이미지 URL로 변경해야 합니다.
+        },
+      )
     );
   }
 }
@@ -151,4 +159,19 @@ void showCustomDialog(BuildContext context, String message, Function action) {
       );
     },
   );
+}
+
+Future<List<String>> fetchImages() async {
+  final response = await http.get(
+    Uri.parse('https://tf-mauritius-techrepublic-wn.trycloudflare.com/api/odyssey/'));
+  //https://nasdaq-dial-raised-deployment.trycloudflare.com/api/odyssey/
+  if (response.statusCode == 200) {
+    // 서버가 성공적으로 응답하면, JSON을 파싱합니다.
+    var jsonResponse = jsonDecode(response.body);
+    List<String> imageUrls = jsonResponse.map((item) => item['presignedUrl']).toList();
+    return imageUrls;
+  } else {
+    // 서버가 실패로 응답하면, 예외를 던집니다.
+    throw Exception('Failed to load images');
+  }
 }
