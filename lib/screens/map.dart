@@ -30,6 +30,8 @@ class _MapScreenState extends State<MapScreen> {
 
   ScreenshotController screenshotController = ScreenshotController();
 
+  bool _isPosting = false;
+
   @override
   void initState() {
     super.initState();
@@ -97,39 +99,96 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void savePosting(SpotProvider spotProvider, RouteProvider routeProvider) async {
-    List<Spot> spots = spotProvider.getAllSpots(); 
-    final route = app_route.Route(title: routeProvider.routeTitle!,
-                        startLatitude: spots.first.position.latitude,
-                        startLongitude: spots.first.position.longitude,
-                        endLatitude: spots.last.position.latitude,
-                        endLongitude: spots.last.position.longitude,
-                        );
+    if(_isPosting) {
+      return;
+    }
 
-    // 2. Mark된 Spot point 데이터를 가공합니다. 여기서는 처음과 끝을 제외한 메모 또는 사진이 있는 Spot만 선택
-    final spotsWithMemoAndPhoto = [
-      spots.first,
-      ...spots.sublist(1, spots.length - 1).where((spot) => spot.memo != null || spot.photos != null),
-      spots.last,
-    ].toList();
+    _isPosting = true;
 
-    final odyssey = Odyssey(
-      route: route,
-      spots: spotsWithMemoAndPhoto,
-    );
-
-    final response = await http.post(
-      Uri.parse('https://tf-mauritius-techrepublic-wn.trycloudflare.com/api/odyssey/'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text("요청중..."),
+              ],
+            ),
+          ),
+        );
       },
-      body: jsonEncode(odyssey.toJson()),
     );
 
-    if (response.statusCode == 200) {
-      print('response.body: ${response.body}');
-      await uploadImages(response.body);
-    } else {
-      throw Exception('저장에 실패했습니다.');
+    await Future.delayed(const Duration(seconds: 1));
+    
+    try {
+      List<Spot> spots = spotProvider.getAllSpots(); 
+      final route = app_route.Route(title: routeProvider.routeTitle!,
+                          startLatitude: spots.first.position.latitude,
+                          startLongitude: spots.first.position.longitude,
+                          endLatitude: spots.last.position.latitude,
+                          endLongitude: spots.last.position.longitude,
+                          );
+
+      // 2. Mark된 Spot point 데이터를 가공합니다. 여기서는 처음과 끝을 제외한 메모 또는 사진이 있는 Spot만 선택
+      final spotsWithMemoAndPhoto = [
+        spots.first,
+        ...spots.sublist(1, spots.length - 1).where((spot) => spot.memo != null || spot.photos != null),
+        spots.last,
+      ].toList();
+
+      final odyssey = Odyssey(
+        route: route,
+        spots: spotsWithMemoAndPhoto,
+      );
+
+      final response = await http.post(
+        Uri.parse('https://mom-denver-screen-won.trycloudflare.com/api/odyssey/'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(odyssey.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        print('response.body: ${response.body}');
+        await uploadImages(response.body);
+
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('등록이 완료되었습니다.'),
+          ),
+        );
+      } else {
+        _isPosting = false;
+
+        Navigator.of(context).pop(); 
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('등록에 실패했습니다.'),
+          ),
+        );
+      }
+    } catch (e) {
+
+      Navigator.of(context).pop(); 
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('등록에 실패했습니다.'),
+        ),
+      );
+    } finally {
+      _isPosting = false;
     }
   }
 

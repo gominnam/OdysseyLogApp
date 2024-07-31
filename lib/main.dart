@@ -9,6 +9,7 @@ import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:odyssey_flutter_app/screens/map.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
 void main() async {
@@ -81,6 +82,63 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<String> _images = [];
+  int _page = 0;
+  bool _isLoading = false;
+  late final String _lastTimestamp;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    _lastTimestamp = DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now());
+    super.initState();
+    fetchImages();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+        fetchImages();
+      }
+    });
+  }
+
+  Future<void> fetchImages() async {
+    if(_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final response = await http.get(
+      //cloudflared tunnel --url http://localhost:8080
+      Uri.parse('https://mom-denver-screen-won.trycloudflare.com/api/routes/?page=$_page&timestamp=$_lastTimestamp'),
+    );
+
+    if (response.statusCode == 200) {
+      var jsonResponse = jsonDecode(response.body);
+      print("jsonResponse: " + jsonResponse.toString());
+
+      List<String> newImages = [];
+      for(var item in jsonResponse['content']) {
+        if(item != null && item['presignedUrl'] != null) {
+          newImages.add(item['presignedUrl'] as String);
+        }
+      }
+
+      // (jsonResponse['content'] as List)
+      //   .map<String>((item) => item['presignedUrl'] as String)
+      //   .toList(); 
+
+      setState(() {
+        _images.addAll(newImages);
+        _page++;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+      throw Exception('Failed to load images');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,19 +176,28 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       body: GridView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.all(10.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           crossAxisSpacing: 10.0,
           mainAxisSpacing: 10.0,
         ),
-        itemCount: 15, // 표시할 이미지의 총 수
+        itemCount: _images.length + (_isLoading ? 1 : 0), // 표시할 이미지의 총 수
         itemBuilder: (context, index) {
-          return Image.network('https://example.com/image${index}.jpg');
-          // 실제 이미지 URL로 변경해야 합니다.
+          if(index == _images.length){
+            return const Center(child: CircularProgressIndicator());
+          }
+          return Image.network(_images[index]);
         },
       )
     );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 }
 
@@ -159,19 +226,4 @@ void showCustomDialog(BuildContext context, String message, Function action) {
       );
     },
   );
-}
-
-Future<List<String>> fetchImages() async {
-  final response = await http.get(
-    Uri.parse('https://tf-mauritius-techrepublic-wn.trycloudflare.com/api/odyssey/'));
-  //https://nasdaq-dial-raised-deployment.trycloudflare.com/api/odyssey/
-  if (response.statusCode == 200) {
-    // 서버가 성공적으로 응답하면, JSON을 파싱합니다.
-    var jsonResponse = jsonDecode(response.body);
-    List<String> imageUrls = jsonResponse.map((item) => item['presignedUrl']).toList();
-    return imageUrls;
-  } else {
-    // 서버가 실패로 응답하면, 예외를 던집니다.
-    throw Exception('Failed to load images');
-  }
 }
