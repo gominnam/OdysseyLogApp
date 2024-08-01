@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:odyssey_flutter_app/config/constants.dart';
 import 'package:odyssey_flutter_app/models/route.dart' as app_route;
 import 'package:odyssey_flutter_app/models/spot.dart';
 import 'package:odyssey_flutter_app/models/photo.dart';
@@ -149,7 +150,7 @@ class _MapScreenState extends State<MapScreen> {
       );
 
       final response = await http.post(
-        Uri.parse('https://mom-denver-screen-won.trycloudflare.com/api/odyssey/'),
+        Uri.parse('$baseUrl/api/odyssey/'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },

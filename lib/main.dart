@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:odyssey_flutter_app/config/constants.dart';
+import 'package:odyssey_flutter_app/models/routeImage.dart';
 import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:odyssey_flutter_app/screens/map.dart';
+import 'package:odyssey_flutter_app/screens/route.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -82,7 +85,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<String> _images = [];
+  List<RouteImage> _images = [];
   int _page = 0;
   bool _isLoading = false;
   late final String _lastTimestamp;
@@ -109,26 +112,19 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final response = await http.get(
       //cloudflared tunnel --url http://localhost:8080
-      Uri.parse('https://mom-denver-screen-won.trycloudflare.com/api/routes/?page=$_page&timestamp=$_lastTimestamp'),
+      Uri.parse('$baseUrl/api/routes/?page=$_page&timestamp=$_lastTimestamp'),
     );
 
     if (response.statusCode == 200) {
-      var jsonResponse = jsonDecode(response.body);
-      print("jsonResponse: " + jsonResponse.toString());
-
-      List<String> newImages = [];
-      for(var item in jsonResponse['content']) {
-        if(item != null && item['presignedUrl'] != null) {
-          newImages.add(item['presignedUrl'] as String);
-        }
-      }
-
-      // (jsonResponse['content'] as List)
-      //   .map<String>((item) => item['presignedUrl'] as String)
-      //   .toList(); 
+      final Map<String, dynamic> data = json.decode(response.body);
+      print(response.body); // Debugging message
+      final List<dynamic> contents = data['content'];
 
       setState(() {
-        _images.addAll(newImages);
+        int initialLength = _images.length; 
+        _images.addAll(contents.map((json) => RouteImage.fromJson(json)).toList());
+        int addedLength = _images.length - initialLength; // Number of images added
+        print('Added $addedLength images. Total images: ${_images.length}'); // Debugging message
         _page++;
         _isLoading = false;
       });
@@ -180,15 +176,48 @@ class _MyHomePageState extends State<MyHomePage> {
         padding: const EdgeInsets.all(10.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 10.0,
-          mainAxisSpacing: 10.0,
+          crossAxisSpacing: 4.0,
+          mainAxisSpacing: 4.0,
+          childAspectRatio: 0.75,
         ),
         itemCount: _images.length + (_isLoading ? 1 : 0), // 표시할 이미지의 총 수
         itemBuilder: (context, index) {
           if(index == _images.length){
             return const Center(child: CircularProgressIndicator());
           }
-          return Image.network(_images[index]);
+          return GestureDetector(
+            onTap: () {
+              final routeImage = _images[index]; // route 데이터 가져오기
+              print('Tapped image URL: ${routeImage.presignedUrl}'); // presignedUrl 값 출력
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RoutePage(routeImage: routeImage),
+                ),
+              );
+            },
+            child: Image.network(
+              _images[index].presignedUrl,
+              fit: BoxFit.cover, // 이미지를 박스에 맞게 조정
+              loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                if (loadingProgress == null) {
+                  return child;
+                } else {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
+                          : null,
+                    ),
+                  );
+                }
+              },
+              errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                print('Failed to load image URL: ${_images[index].presignedUrl}'); // 에러 발생 시 presignedUrl 값 출력
+                return const Icon(Icons.error);
+              },
+            ),
+          );
         },
       )
     );
