@@ -12,6 +12,7 @@ import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:odyssey_flutter_app/screens/map.dart';
 import 'package:odyssey_flutter_app/screens/route.dart';
 import 'package:provider/provider.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
@@ -88,6 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<RouteImage> _images = [];
   int _page = 0;
   bool _isLoading = false;
+  bool _hasMore = true;
   late final String _lastTimestamp;
   final ScrollController _scrollController = ScrollController();
 
@@ -97,7 +99,11 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     fetchImages();
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent && !_isLoading) {
+        if(!_hasMore) {
+          _showNoMoreDataAlert();
+          return;
+        }
         fetchImages();
       }
     });
@@ -119,14 +125,13 @@ class _MyHomePageState extends State<MyHomePage> {
       final Map<String, dynamic> data = json.decode(response.body);
       print(response.body); // Debugging message
       final List<dynamic> contents = data['content'];
+      final bool isLastPage = data['last'];
 
       setState(() {
-        int initialLength = _images.length; 
         _images.addAll(contents.map((json) => RouteImage.fromJson(json)).toList());
-        int addedLength = _images.length - initialLength; // Number of images added
-        print('Added $addedLength images. Total images: ${_images.length}'); // Debugging message
         _page++;
         _isLoading = false;
+        _hasMore = !isLastPage;
       });
     } else {
       setState(() {
@@ -134,6 +139,18 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       throw Exception('Failed to load images');
     }
+  }
+
+  void _showNoMoreDataAlert() {
+    Fluttertoast.showToast(
+      msg: "더 이상 데이터가 없습니다.",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 1,
+      backgroundColor: Colors.black,
+      textColor: Colors.white,
+      fontSize: 16.0
+    );
   }
 
   @override
@@ -188,7 +205,6 @@ class _MyHomePageState extends State<MyHomePage> {
           return GestureDetector(
             onTap: () {
               final routeImage = _images[index]; // route 데이터 가져오기
-              print('Tapped image URL: ${routeImage.presignedUrl}'); // presignedUrl 값 출력
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -213,7 +229,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
               errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                print('Failed to load image URL: ${_images[index].presignedUrl}'); // 에러 발생 시 presignedUrl 값 출력
                 return const Icon(Icons.error);
               },
             ),
