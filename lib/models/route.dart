@@ -1,5 +1,6 @@
 
 class Route {
+  final int? id;
   final String title;
   final double startLatitude;
   final double startLongitude;
@@ -10,6 +11,7 @@ class Route {
   String? photoUrl;
 
   Route({
+    this.id, 
     required this.title,
     required this.startLatitude,
     required this.startLongitude,
@@ -19,7 +21,8 @@ class Route {
   });
 
   Route.fromJson(Map<String, dynamic> json)
-    : title = json['title'],
+    : id = json['id'],
+      title = json['title'],
       startLatitude = json['startLatitude'],
       startLongitude = json['startLongitude'],
       endLatitude = json['endLatitude'],
@@ -27,6 +30,7 @@ class Route {
       photoUrl = json['photoUrl'];
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'title': title,
     'startLatitude': startLatitude,
     'startLongitude': startLongitude,

@@ -77,7 +77,7 @@ class _MapScreenState extends State<MapScreen> {
           var responsePhoto = responsePhotos[index];
           if (responsePhoto['presignedUrl'] != null) {
             String presignedUrl = responsePhoto['presignedUrl'];
-            await uploadImageToS3(presignedUrl, File(photo.path));
+            await uploadImageToS3(presignedUrl, File(photo.path!));
           } else {
             print('presignedUrl is null for photo: ${photo.path}');
           }
@@ -229,7 +229,7 @@ class _MapScreenState extends State<MapScreen> {
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.only(top: 50),
                               children: spot.photos!.map((photo) => Image.file(
-                                File(photo.path),
+                                File(photo.path!),
                                 width: MediaQuery.of(context).size.width / 3,
                                 fit: BoxFit.fitWidth,
                               )).toList(),

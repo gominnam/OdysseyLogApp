@@ -1,12 +1,12 @@
 
 class Photo {
   // final String order;
-  final String path;
+  final String? path;
   final String? presignedUrl;
 
   Photo({
     // required this.order,
-    required this.path,
+    this.path,
     this.presignedUrl,
   });
 

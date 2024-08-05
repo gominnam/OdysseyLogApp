@@ -81,6 +81,8 @@ class SpotProvider with ChangeNotifier {
   File? getPhotoFile(String id, int index) {
     final spot = _spots.firstWhere((spot) => spot.id == id);
     final photo = spot.photos![index];
-    return File(photo.path);
+    if (photo.path != null) {
+      return File(photo.path!);
+    }
   }
 }

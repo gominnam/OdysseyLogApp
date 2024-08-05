@@ -49,4 +49,5 @@ class RouteProvider with ChangeNotifier {
     List<Map<String, dynamic>> jsonData = _routes.map((route) => route.toJson()).toList();
     return jsonEncode(jsonData);
   }
+
 }

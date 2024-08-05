@@ -66,12 +66,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Oddyssey Log',
+      title: 'Odyssey',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightBlueAccent),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.lightBlueAccent,
+          primary: Colors.lightBlueAccent,
+          secondary: Colors.lightBlueAccent,
+        ),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Oddyssey Log'),
+      home: const MyHomePage(title: 'Odyssey'),
     );
   }
 }
@@ -164,11 +168,17 @@ class _MyHomePageState extends State<MyHomePage> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            DrawerHeader(
-              child: Text('Menu'),
+            const DrawerHeader(
               decoration: BoxDecoration(
-                color: Colors.blue,
+                color: Colors.lightBlueAccent, // DrawerHeader 색상 설정
               ),
+              child: Text(
+                'Menu',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 24,
+                ),),
+              
             ),
             ListTile(
               title: Text('여정'),
@@ -188,53 +198,56 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      body: GridView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(10.0),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 4.0,
-          mainAxisSpacing: 4.0,
-          childAspectRatio: 0.75,
+      body: Container(
+        color: Theme.of(context).colorScheme.inversePrimary,
+        child: GridView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(10.0),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 4.0,
+            mainAxisSpacing: 4.0,
+            childAspectRatio: 0.75,
+          ),
+          itemCount: _images.length + (_isLoading ? 1 : 0), // 표시할 이미지의 총 수
+          itemBuilder: (context, index) {
+            if(index == _images.length){
+              return const Center(child: CircularProgressIndicator());
+            }
+            return GestureDetector(
+              onTap: () {
+                final routeImage = _images[index]; // route 데이터 가져오기
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RoutePage(routeImage: routeImage),
+                  ),
+                );
+              },
+              child: Image.network(
+                _images[index].presignedUrl,
+                fit: BoxFit.cover, // 이미지를 박스에 맞게 조정
+                loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                  if (loadingProgress == null) {
+                    return child;
+                  } else {
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
+                            : null,
+                      ),
+                    );
+                  }
+                },
+                errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                  return const Icon(Icons.error);
+                },
+              ),
+            );
+          },
         ),
-        itemCount: _images.length + (_isLoading ? 1 : 0), // 표시할 이미지의 총 수
-        itemBuilder: (context, index) {
-          if(index == _images.length){
-            return const Center(child: CircularProgressIndicator());
-          }
-          return GestureDetector(
-            onTap: () {
-              final routeImage = _images[index]; // route 데이터 가져오기
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RoutePage(routeImage: routeImage),
-                ),
-              );
-            },
-            child: Image.network(
-              _images[index].presignedUrl,
-              fit: BoxFit.cover, // 이미지를 박스에 맞게 조정
-              loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                if (loadingProgress == null) {
-                  return child;
-                } else {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
-                          : null,
-                    ),
-                  );
-                }
-              },
-              errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                return const Icon(Icons.error);
-              },
-            ),
-          );
-        },
-      )
+      ),
     );
   }
 
