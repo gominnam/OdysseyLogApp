@@ -1,27 +1,9 @@
-// lib/providers/spot_provider.dart
 
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:odyssey_flutter_app/models/spot.dart';
 import 'package:odyssey_flutter_app/models/photo.dart';
-// import 'package:flutter_naver_map/flutter_naver_map.dart';
-
-// class Spot {
-//   final String id;
-//   final NLatLng position;
-//   String? memo;
-//   List<String>? photos;
-
-//   Spot({
-//     required this.id, 
-//     required this.position, 
-//     this.memo,
-//     this.photos,
-//   }){
-//     photos ??= [];
-//   }
-// }
 
 class SpotProvider with ChangeNotifier {
   
