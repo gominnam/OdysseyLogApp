@@ -7,6 +7,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:odyssey_flutter_app/config/constants.dart';
 import 'package:odyssey_flutter_app/models/routeImage.dart';
+import 'package:odyssey_flutter_app/providers/oddysey_provider.dart';
 import 'package:odyssey_flutter_app/providers/route_provider.dart';
 import 'package:odyssey_flutter_app/providers/spot_provider.dart';
 import 'package:odyssey_flutter_app/screens/map.dart';
@@ -30,6 +31,9 @@ void main() async {
         ChangeNotifierProvider(
           create: (context) => RouteProvider(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => OdysseyProvider()
+          ),
       ],
       child: const MyApp(),
     ),

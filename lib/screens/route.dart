@@ -7,13 +7,15 @@ import 'package:odyssey_flutter_app/config/constants.dart';
 import 'dart:convert';
 
 import 'package:odyssey_flutter_app/models/routeImage.dart';
+import 'package:odyssey_flutter_app/providers/oddysey_provider.dart';
+import 'package:provider/provider.dart';
 
 import '../models/odyssey.dart';
 
 class RoutePage extends StatefulWidget {
   final RouteImage routeImage;
 
-  const RoutePage({super.key, required this.routeImage});
+  const RoutePage({Key? key, required this.routeImage}) : super(key: key);
 
   @override
   _RoutePageState createState() => _RoutePageState();
@@ -26,67 +28,68 @@ class _RoutePageState extends State<RoutePage> {
   @override
   void initState() {
     super.initState();
-    _apiResponse = fetchApiData(widget.routeImage.id);
-    print("_apiResponse: $_apiResponse");
+    final odysseyProvider = Provider.of<OdysseyProvider>(context, listen: false);
+    if (odysseyProvider.odyssey == null) {
+      _apiResponse = _fetchOdysseyData(widget.routeImage.id);
+      _apiResponse.then((odyssey) {
+        odysseyProvider.setOdyssey(odyssey);
+      });
+    } else {
+      _apiResponse = Future.value(odysseyProvider.odyssey);
+    }
   }
 
-  Future<Odyssey> fetchApiData(int routeId) async {
-    print('fetchApiData: $routeId');
+  Future<Odyssey> _fetchOdysseyData(int routeId) async {
+    print('_fetchOdysseyData: $routeId');
     final url = '$baseUrl/api/routes/$routeId'; // API URL
     final response = await http.get(Uri.parse(url)); // HTTP GET 요청
     if (response.statusCode == 200) {
-      print('jsonEncode(response.body): ${jsonEncode(response.body)}');
-      print('please...');
-      final odyssey = Odyssey.fromRouteResponseJson(jsonDecode(response.body));
-      print('odyssey: $odyssey');
+      print('utf8: ${jsonDecode(utf8.decode(response.bodyBytes))}');
+      final odyssey = Odyssey.fromRouteResponseJson(jsonDecode(utf8.decode(response.bodyBytes)));
       return odyssey;
     } else {
       throw Exception('Failed to load data'); // 실패 시 예외 발생
     }
   }
 
-  // void _addMarkers(NaverMapController controller, List<dynamic> spots) {
-  //   List<Marker> markers = [];
-  //   todo: start route -> spots -> end route rendering
-  //   //Future<NPoint> latLngToScreenLocation(NLatLng latLng);
-  //   var marker = new naver.maps.Marker({
-  //       position: new naver.maps.LatLng(37.3595704, 127.105399),
-  //       map: map
-  //   });
-  //   for (var spot in spots) {
-  //     final marker = Marker(
-  //       position: LatLng(spot['latitude'], spot['longitude']),
-  //       infoWindow: InfoWindow(title: spot['name']),
-  //     );
-  //     markers.add(marker);
-  //   }
-  //   controller.addMarkers(markers);
-  //   }
-  // }
-
   @override
   Widget build(BuildContext context) {
+    final odysseyProvider = Provider.of<OdysseyProvider>(context);
+    final odyssey = odysseyProvider.odyssey;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Route Detail'), // route 데이터의 title 값으로 세팅
+        title: Text(
+          odyssey?.route.title ?? 'Loading...',
+          style: TextStyle(fontFamily: 'NotoSansKR',
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: Colors.black,
+          ),
+        ),
       ),
       body: FutureBuilder<Odyssey>(
         future: _apiResponse,
         builder: (context, snapshot) {
-          print('snapshot: $snapshot');
-          print('snapshot.data: ${jsonEncode(snapshot.data)}');
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (snapshot.connectionState == ConnectionState.done) {
+            if (!snapshot.hasData || snapshot.data == null) {
+              return Center(child: Text('No data available'));
+            } else {
+              final odyssey = snapshot.data!;
+              Provider.of<OdysseyProvider>(context, listen: false).setOdyssey(odyssey);
+              return NaverMap(
+                onMapReady: (controller) {
+                  _mapControllerCompleter.complete(controller);
+                  _addMarkers(controller, odyssey);
+                },
+              );
+            }
           } else {
-            final odyssey = snapshot.data!;
-            return NaverMap(
-              onMapReady: (controller) {
-                _mapControllerCompleter.complete(controller);
-                _addMarkers(controller, odyssey);
-              },
-            );
+            return Center(child: CircularProgressIndicator());
           }
         },
       ),
@@ -94,17 +97,52 @@ class _RoutePageState extends State<RoutePage> {
   }
 
   void _addMarkers(NaverMapController controller, Odyssey odyssey) {
-    // for (final spot in spots) {
-    //   final marker = Marker(
-    //     markerId: MarkerId(spot['id'].toString()),
-    //     position: LatLng(spot['latitude'], spot['longitude']),
-    //     infoWindow: InfoWindow(title: spot['name']),
-    //   );
-    //   controller.addMarker(marker);
-    // }
-    print('!!');
-    print(odyssey);
+    // List<NMarker> markers = [];
+    Set<NMarker> markers = {};
+    
+    final route = odyssey.route;
+    final NMarker startMarker = NMarker(
+      id: 'start',
+      position: NLatLng(route.startLatitude, route.startLongitude)
+    );
+    markers.add(startMarker);
+
+    for (final spot in odyssey.spots) {
+      final NMarker marker = NMarker(id: spot.id, position: spot.position);
+      markers.add(marker);
+      // controller.addOverlay(marker);
+    }
+
+    final NMarker endMarker = NMarker(
+      id: 'end',
+      position: NLatLng(route.endLatitude, route.endLongitude)
+    );
+    markers.add(endMarker);
+
+    controller.addOverlayAll(markers);
+    moveMapSpot(controller, markers);
+    addPolylineToMap(markers, controller);
+
     print(odyssey.route);
     print(odyssey.spots);
+  }
+
+  Future<void> moveMapSpot(NaverMapController controller, Set<NMarker> markers) async {
+    final List<NMarker> markerList = markers.toList();
+    final int middleIndex = markerList.length ~/ 2;
+    final NMarker middleMarker = markerList[middleIndex];
+    controller.updateCamera(NCameraUpdate.scrollAndZoomTo(target: middleMarker.position, zoom: 18));
+  }
+
+  void addPolylineToMap(Set<NMarker> markers, NaverMapController controller) {
+    final List<NLatLng> positions = markers.map((marker) => marker.position).toList();
+    final NPolylineOverlay polyline = NPolylineOverlay(
+      id: 'route_polyline',
+      coords: positions,
+      color: Colors.blue,
+      width: 5,
+    );
+    
+    controller.addOverlay(polyline);
   }
 }
