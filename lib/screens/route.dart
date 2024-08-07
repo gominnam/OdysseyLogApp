@@ -23,20 +23,13 @@ class RoutePage extends StatefulWidget {
 
 class _RoutePageState extends State<RoutePage> {
   final Completer<NaverMapController> _mapControllerCompleter = Completer<NaverMapController>();
-  late Future<Odyssey> _apiResponse;
+  late Future<void> _apiResponse;
 
   @override
   void initState() {
     super.initState();
     final odysseyProvider = Provider.of<OdysseyProvider>(context, listen: false);
-    if (odysseyProvider.odyssey == null) {
-      _apiResponse = _fetchOdysseyData(widget.routeImage.id);
-      _apiResponse.then((odyssey) {
-        odysseyProvider.setOdyssey(odyssey);
-      });
-    } else {
-      _apiResponse = Future.value(odysseyProvider.odyssey);
-    }
+     _apiResponse = odysseyProvider.fetchOdysseyData(widget.routeImage.id);
   }
 
   Future<Odyssey> _fetchOdysseyData(int routeId) async {
@@ -54,46 +47,66 @@ class _RoutePageState extends State<RoutePage> {
 
   @override
   Widget build(BuildContext context) {
-    final odysseyProvider = Provider.of<OdysseyProvider>(context);
-    final odyssey = odysseyProvider.odyssey;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          odyssey?.route.title ?? 'Loading...',
-          style: TextStyle(fontFamily: 'NotoSansKR',
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.black,
+    return FutureBuilder<void>(
+    future: _apiResponse,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              'Loading...',
+              style: TextStyle(
+                fontFamily: 'NotoSansKR',
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.black,
+              ),
+            ),
           ),
-        ),
-      ),
-      body: FutureBuilder<Odyssey>(
-        future: _apiResponse,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (snapshot.connectionState == ConnectionState.done) {
-            if (!snapshot.hasData || snapshot.data == null) {
-              return Center(child: Text('No data available'));
-            } else {
-              final odyssey = snapshot.data!;
-              Provider.of<OdysseyProvider>(context, listen: false).setOdyssey(odyssey);
-              return NaverMap(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      } else if (snapshot.hasError) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              'Error',
+              style: TextStyle(
+                fontFamily: 'NotoSansKR',
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          body: Center(child: Text('Error loading data')),
+        );
+      } else {
+        final odysseyProvider = Provider.of<OdysseyProvider>(context);
+        final odyssey = odysseyProvider.getOdysseyById(widget.routeImage.id);
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              odyssey?.route.title ?? 'No Title',
+              style: TextStyle(
+                fontFamily: 'NotoSansKR',
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          body: odyssey != null
+              ? NaverMap(
                 onMapReady: (controller) {
                   _mapControllerCompleter.complete(controller);
                   _addMarkers(controller, odyssey);
                 },
-              );
-            }
-          } else {
-            return Center(child: CircularProgressIndicator());
-          }
-        },
-      ),
-    );
+              )
+              : Center(child: Text('Error loading data')),
+        );
+      }
+    },
+  );
   }
 
   void _addMarkers(NaverMapController controller, Odyssey odyssey) {
