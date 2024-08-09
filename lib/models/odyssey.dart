@@ -32,4 +32,18 @@ class Odyssey {
           .toList(),
     );
   }
+
+  Spot? getSpotById(String spotId) {
+    for (final spot in spots) {
+      if (spot.id == spotId) {
+        return spot;
+      }
+    }
+    return null;
+  }
+
+  @override
+  String toString() {
+    return 'Odyssey(route: $route, spots: $spots)';
+  }
 }

@@ -1,21 +1,28 @@
 
 class Photo {
-  // final String order;
   final String? path;
-  final String? presignedUrl;
+  String? url;
+  String? presignedUrl;
 
   Photo({
-    // required this.order,
     this.path,
     this.presignedUrl,
+    this.url,
   });
 
   Photo.fromJson(Map<String, dynamic> json)
-    // : order = json['order'],
     : path = json['path']
+    , url = json['url']
     , presignedUrl = json['presignedUrl'];
 
   Map<String, dynamic> toJson() => {
-    // 'order': order,
+    'path': path,
+    'url': url,
+    'presignedUrl': presignedUrl,
   };
+
+  @override
+  String toString() {
+    return 'Photo(path: $path, url: $url, presignedUrl: $presignedUrl)';
+  }  
 }

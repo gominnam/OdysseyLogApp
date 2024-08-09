@@ -1,4 +1,3 @@
-// import 'package:flutter/foundation.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:odyssey_flutter_app/models/photo.dart';
 import 'package:uuid/uuid.dart';
@@ -35,4 +34,9 @@ class Spot {
     'memo': memo,
     'photoSize': photos!.length,
   };
+
+  @override
+  String toString() {
+    return 'Spot(id: $id, position: $position, memo: $memo, photos: $photos)';
+  }
 }
