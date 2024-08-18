@@ -130,7 +130,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
-      print(response.body); // Debugging message
       final List<dynamic> contents = data['content'];
       final bool isLastPage = data['last'];
 

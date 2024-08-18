@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:odyssey_flutter_app/config/constants.dart';
 import 'package:odyssey_flutter_app/main.dart';
@@ -63,7 +64,20 @@ class _MapScreenState extends State<MapScreen> {
     // route photo upload
     if (responseRoute['photoUrl'] != null) {
       String presignedUrl = responseRoute['photoUrl'];
-      await uploadImageToS3(presignedUrl, File(routeProvider.routePhotoUrl!)); 
+      File imageFile = File(routeProvider.routePhotoUrl!);
+
+      img.Image? image = img.decodeImage(imageFile.readAsBytesSync());
+
+      double aspectRatio = image!.width / image.height;
+      int targetWidth = 1200; // 원하는 너비
+      int targetHeight = (targetWidth / aspectRatio).round(); // 비율에 맞춘 높이
+
+      img.Image resizedImage = img.copyResize(image!, width: targetWidth, height: targetHeight);
+
+      File compressedImageFile = File('${imageFile.path}_compressed.jpg')
+        ..writeAsBytesSync(img.encodeJpg(resizedImage, quality: 85));
+
+      await uploadImageToS3(presignedUrl, compressedImageFile); 
     }
       
     // spot photos upload
@@ -78,7 +92,20 @@ class _MapScreenState extends State<MapScreen> {
           var responsePhoto = responsePhotos[index];
           if (responsePhoto['presignedUrl'] != null) {
             String presignedUrl = responsePhoto['presignedUrl'];
-            await uploadImageToS3(presignedUrl, File(photo.path!));
+            File imageFile = File(routeProvider.routePhotoUrl!);
+
+            img.Image? image = img.decodeImage(imageFile.readAsBytesSync());
+
+            double aspectRatio = image!.width / image.height;
+            int targetWidth = 1200; // 원하는 너비
+            int targetHeight = (targetWidth / aspectRatio).round(); // 비율에 맞춘 높이
+
+            img.Image resizedImage = img.copyResize(image!, width: targetWidth, height: targetHeight);
+
+            File compressedImageFile = File('${imageFile.path}_compressed.jpg')
+              ..writeAsBytesSync(img.encodeJpg(resizedImage, quality: 85)); 
+
+            await uploadImageToS3(presignedUrl, compressedImageFile);
           } else {
             print('presignedUrl is null for photo: ${photo.path}');
           }
@@ -108,8 +135,6 @@ class _MapScreenState extends State<MapScreen> {
     _isPosting = true;
     
     try {
-      // await Future.delayed(const Duration(seconds: 1));
-
       List<Spot> spots = spotProvider.getAllSpots(); 
       final route = app_route.Route(title: routeProvider.routeTitle!,
                           startLatitude: spots.first.position.latitude,
@@ -159,8 +184,6 @@ class _MapScreenState extends State<MapScreen> {
           },
         );
 
-        print('show dialog result: $result');
-        print('mounted: $mounted');
         if(result == true){
           spotProvider.reset();
           routeProvider.reset();
@@ -446,7 +469,6 @@ class _MapScreenState extends State<MapScreen> {
                                   });
                                 } else {
                                   savePosting(context, spotProvider, routeProvider);
-                                  // Navigator.of(context).pop();  // 대화 상자를 닫습니다.
                                 } 
                               },
                             ),
