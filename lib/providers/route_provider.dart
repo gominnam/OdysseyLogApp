@@ -50,4 +50,10 @@ class RouteProvider with ChangeNotifier {
     return jsonEncode(jsonData);
   }
 
+  void reset() {
+    _routeTitle = null;
+    _routePhotoUrl = null;
+    _routes.clear();
+    notifyListeners();
+  }
 }

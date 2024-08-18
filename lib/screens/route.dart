@@ -2,12 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
-import 'package:http/http.dart' as http;
-import 'package:odyssey_flutter_app/config/constants.dart';
-import 'dart:convert';
 
 import 'package:odyssey_flutter_app/models/routeImage.dart';
-import 'package:odyssey_flutter_app/models/spot.dart';
 import 'package:odyssey_flutter_app/providers/oddysey_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -34,75 +30,81 @@ class _RoutePageState extends State<RoutePage> {
     super.initState();
     final odysseyProvider = Provider.of<OdysseyProvider>(context, listen: false);
     _apiResponse = odysseyProvider.fetchOdysseyData(widget.routeImage.id);
+    
+    _pageController.addListener(() {
+      setState(() {
+        _currentPage = _pageController.page!.round();
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
-    future: _apiResponse,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              'Loading...',
-              style: TextStyle(
-                fontFamily: 'NotoSansKR',
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                color: Colors.black,
+      future: _apiResponse,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Loading...',
+                style: TextStyle(
+                  fontFamily: 'NotoSansKR',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  color: Colors.black,
+                ),
               ),
             ),
-          ),
-          body: Center(child: CircularProgressIndicator()),
-        );
-      } else if (snapshot.hasError) {
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              'Error',
-              style: TextStyle(
-                fontFamily: 'NotoSansKR',
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                color: Colors.black,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        } else if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                'Error',
+                style: TextStyle(
+                  fontFamily: 'NotoSansKR',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  color: Colors.black,
+                ),
               ),
             ),
-          ),
-          body: Center(child: Text('Error loading data')),
-        );
-      } else {
-        final odysseyProvider = Provider.of<OdysseyProvider>(context);
-        final odyssey = odysseyProvider.getOdysseyById(widget.routeImage.id);
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              odyssey?.route.title ?? 'No Title',
-              style: TextStyle(
-                fontFamily: 'NotoSansKR',
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                color: Colors.black,
+            body: Center(child: Text('Error loading data')),
+          );
+        } else {
+          final odysseyProvider = Provider.of<OdysseyProvider>(context);
+          final odyssey = odysseyProvider.getOdysseyById(widget.routeImage.id);
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                odyssey?.route.title ?? 'No Title',
+                style: TextStyle(
+                  fontFamily: 'NotoSansKR',
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  color: Colors.black,
+                ),
               ),
             ),
-          ),
-          body: odyssey != null
-              ? NaverMap(
-                onMapReady: (controller) {
-                  _mapControllerCompleter.complete(controller);
-                  _initializationMarker(odyssey);
-                  controller.addOverlayAll(_markers);
-                  _moveMapSpot(controller);
-                  _addMarkerInfo(controller, _markers, odyssey);
-                  _addPolylineToMap(controller);
-                },
-                // markers: _markers,
-              )
-              : Center(child: Text('Error loading data')),
-        );
-      }
-    },
-  );
+            body: odyssey != null
+                ? NaverMap(
+                  onMapReady: (controller) {
+                    _mapControllerCompleter.complete(controller);
+                    _initializationMarker(odyssey);
+                    controller.addOverlayAll(_markers);
+                    _moveMapSpot(controller);
+                    _addMarkerInfo(controller, _markers, odyssey);
+                    _addPolylineToMap(controller);
+                  },
+                  // markers: _markers,
+                )
+                : Center(child: Text('Error loading data')),
+          );
+        }
+      },
+    );
   }
 
   void _initializationMarker(Odyssey odyssey){
@@ -129,7 +131,7 @@ class _RoutePageState extends State<RoutePage> {
     final List<NMarker> markerList = _markers.toList();
     final int middleIndex = markerList.length ~/ 2;
     final NMarker middleMarker = markerList[middleIndex];
-    controller.updateCamera(NCameraUpdate.scrollAndZoomTo(target: middleMarker.position, zoom: 18));
+    controller.updateCamera(NCameraUpdate.scrollAndZoomTo(target: middleMarker.position, zoom: 16));
   }
 
   void _addMarkerInfo(NaverMapController controller, Set<NMarker> markers, Odyssey odyssey) {
@@ -155,8 +157,6 @@ class _RoutePageState extends State<RoutePage> {
       });
 
       final spot = odyssey.spots.firstWhere((spot) => spot.id == marker.info.id);
-      var test = spot.memo;
-      var photos = spot.photos;
       if(spot.memo == null || spot.memo == '') {
         continue;
       }
@@ -176,8 +176,8 @@ class _RoutePageState extends State<RoutePage> {
           return AlertDialog(
             title: Text(spot.memo ?? ''),
             content: SizedBox(
-              height: 300, // 적절한 높이 설정
-              width: double.maxFinite, // 최대 너비 설정
+              height: 300,
+              width: double.maxFinite,
               child: spot.photos != null && spot.photos!.isNotEmpty
                 ? Column(
                   children: [

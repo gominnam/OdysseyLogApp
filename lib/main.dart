@@ -125,7 +125,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     final response = await http.get(
-      //cloudflared tunnel --url http://localhost:8080
       Uri.parse('$baseUrl/api/routes/?page=$_page&timestamp=$_lastTimestamp'),
     );
 
@@ -186,7 +185,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             ListTile(
               title: Text('여정'),
-              onTap: () {
+              onTap: () async {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => MapScreen()),

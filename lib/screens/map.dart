@@ -7,6 +7,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:odyssey_flutter_app/config/constants.dart';
+import 'package:odyssey_flutter_app/main.dart';
 import 'package:odyssey_flutter_app/models/route.dart' as app_route;
 import 'package:odyssey_flutter_app/models/spot.dart';
 import 'package:odyssey_flutter_app/models/photo.dart';
@@ -99,36 +100,16 @@ class _MapScreenState extends State<MapScreen> {
     return {'isValid': true, 'message': ''};
   }
 
-  void savePosting(SpotProvider spotProvider, RouteProvider routeProvider) async {
+  void savePosting(BuildContext context, SpotProvider spotProvider, RouteProvider routeProvider) async {
     if(_isPosting) {
       return;
     }
 
     _isPosting = true;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Dialog(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text("요청중..."),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    await Future.delayed(const Duration(seconds: 1));
     
     try {
+      // await Future.delayed(const Duration(seconds: 1));
+
       List<Spot> spots = spotProvider.getAllSpots(); 
       final route = app_route.Route(title: routeProvider.routeTitle!,
                           startLatitude: spots.first.position.latitude,
@@ -158,16 +139,36 @@ class _MapScreenState extends State<MapScreen> {
       );
 
       if (response.statusCode == 200) {
-        print('response.body: ${response.body}');
         await uploadImages(response.body);
 
-        Navigator.of(context).pop();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('등록이 완료되었습니다.'),
-          ),
+        final result = await showDialog(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: Text('업로드 완료'),
+              content: Text('이미지 업로드가 완료되었습니다.'),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('확인'),
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
         );
+
+        print('show dialog result: $result');
+        print('mounted: $mounted');
+        if(result == true){
+          spotProvider.reset();
+          routeProvider.reset();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MyApp()),
+          );
+        }
+
       } else {
         _isPosting = false;
 
@@ -444,8 +445,8 @@ class _MapScreenState extends State<MapScreen> {
                                     overlayEntry.remove();
                                   });
                                 } else {
-                                  savePosting(spotProvider, routeProvider);
-                                  Navigator.of(context).pop();  // 대화 상자를 닫습니다.
+                                  savePosting(context, spotProvider, routeProvider);
+                                  // Navigator.of(context).pop();  // 대화 상자를 닫습니다.
                                 } 
                               },
                             ),

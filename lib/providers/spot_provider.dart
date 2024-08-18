@@ -67,4 +67,9 @@ class SpotProvider with ChangeNotifier {
       return File(photo.path!);
     }
   }
+
+  void reset(){
+    _spots.clear();
+    notifyListeners();
+  }
 }
