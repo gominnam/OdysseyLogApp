@@ -19,10 +19,7 @@ App의 주요 기능은 다음과 같습니다:
 </br></br>
 
 
-# 3. 위치기반 데이터 
-
-
-# 4. Trouble Shooting
+# 3. Trouble Shooting
 
 ## 1) Localhost에서 서버와 App 연동 테스트 문제
 
@@ -34,27 +31,31 @@ App의 주요 기능은 다음과 같습니다:
   - CloudFlare Tunnel을 사용하여 로컬 서버를 외부에서 접근 가능하도록 설정
   - 이를 통해 핸드폰에서 로컬 서버에 접근하여 API 테스트 가능
 
+
+1. **Cloudflare Tunnel 설치**
 ```shell
-//mac 환경 기준
-
-//1. cloudflared 설치
 brew install cloudflared
+```
 
-//2. 설치 확인
+2. **설치 확인**
+```shell
 cloudflared --version
+```
 
-//3. cloudflared tennel 명령어(port 번호는 server를 사용)
+3. **Cloudflare Tunnel 실행**
+```shell
+//port 번호는 server를 실행하는 포트 번호로 설정
 cloudflared tunnel --url http://localhost:8080
 ```
 
-- 명령어 실행 후 terminal에 나오는 URL을 핸드폰에서 접속하여 테스트 진행
+- 명령어 실행 후 terminal에 나오는 URL을 핸드폰에서 api 호출시 사용
 
 <img src="screenshots/cloudflare_tunnel.png" alt="structure" width="350" height="150"/></br>
 
 </br></br>
 
 
-# 5. 화면 구성
+# 4. 화면 구성
 
 ### 1. 메인페이지
 
